@@ -24,6 +24,8 @@ from apistubgentest.models import (
     SomethingWithOverloads,
     SomethingWithProperties,
     SomeProtocolDecorator,
+    InheritClassFromDifferentNamespace,
+    InheritClassFromDifferentNamespaceOverwriteAttribute,
 )
 
 from pytest import fail
@@ -496,7 +498,7 @@ class TestClassParsing:
         metadata = _count_review_line_metadata(tokens, metadata)
         assert metadata["RelatedToLine"] == 1
         # Body of class is not defined so there is no context end line
-        assert metadata["IsContextEndLine"] == 0
+        assert metadata["IsContextEndLine"] == 1
 
     def test_properties(self):
         obj = SomethingWithProperties
@@ -583,7 +585,7 @@ class TestClassParsing:
         metadata = _count_review_line_metadata(tokens, metadata)
         assert metadata["RelatedToLine"] == 0
         # class type with no defined body
-        assert metadata["IsContextEndLine"] == 0
+        assert metadata["IsContextEndLine"] == 1
 
     def test_union_alias(self):
         obj = AliasUnion
@@ -604,4 +606,58 @@ class TestClassParsing:
         metadata = _count_review_line_metadata(tokens, metadata)
         assert metadata["RelatedToLine"] == 0
         # class type with no defined body
-        assert metadata["IsContextEndLine"] == 0
+        assert metadata["IsContextEndLine"] == 1
+
+    def test_inherited_azure_core_class(self):
+        obj = InheritClassFromDifferentNamespace
+        class_node = ClassNode(
+            name=obj.__name__,
+            namespace=obj.__name__,
+            parent_node=None,
+            obj=obj,
+            pkg_root_namespace=self.pkg_namespace,
+            apiview=MockApiView,
+        )
+        tokens = _tokenize(class_node)
+        actuals = _render_lines(tokens)
+        expected = ["class InheritClassFromDifferentNamespace(AzureError):"
+                    "",
+                    ""]
+        _check_all(actuals, expected, obj)
+
+        metadata = {"RelatedToLine": 0, "IsContextEndLine": 0}
+        metadata = _count_review_line_metadata(tokens, metadata)
+        assert metadata["RelatedToLine"] == 2
+        # class type with no defined body
+        assert metadata["IsContextEndLine"] == 1
+
+    def test_inherited_azure_core_overwrite_method(self):
+        obj = InheritClassFromDifferentNamespaceOverwriteAttribute
+        class_node = ClassNode(
+            name=obj.__name__,
+            namespace=obj.__name__,
+            parent_node=None,
+            obj=obj,
+            pkg_root_namespace=self.pkg_namespace,
+            apiview=MockApiView,
+        )
+        tokens = _tokenize(class_node)
+        actuals = _render_lines(tokens)
+        # ivars are inherited since we can't check their namespace using inspect
+        expected = ["class InheritClassFromDifferentNamespaceOverwriteAttribute(ODataV4Format):",
+                    "property error: str    # Read-only",
+                    "ivar CODE_LABEL = code",
+                    "ivar DETAILS_LABEL = details",
+                    "ivar INNERERROR_LABEL = innererror",
+                    "ivar MESSAGE_LABEL = message",
+                    "ivar TARGET_LABEL = target",
+                    "",
+                    "def message_details(self) -> int"
+                    ]
+        _check_all(actuals, expected, obj)
+
+        metadata = {"RelatedToLine": 0, "IsContextEndLine": 0}
+        metadata = _count_review_line_metadata(tokens, metadata)
+        assert metadata["RelatedToLine"] == 3
+        # class type with no defined body
+        assert metadata["IsContextEndLine"] == 1

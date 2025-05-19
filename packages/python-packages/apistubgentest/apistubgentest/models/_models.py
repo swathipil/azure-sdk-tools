@@ -8,6 +8,7 @@
 
 import abc
 from azure.core import CaseInsensitiveEnumMeta
+from azure.core.exceptions import ODataV4Format, AzureError
 from collections.abc import Sequence
 import datetime
 from enum import Enum, EnumMeta
@@ -330,3 +331,16 @@ AliasNewType = NewType('AliasNewType', Dict[str, str])
 @runtime_checkable
 class SomeProtocolDecorator(Protocol):
     pass
+
+class InheritClassFromDifferentNamespace(AzureError):
+    """Inherit from azure-core"""
+
+class InheritClassFromDifferentNamespaceOverwriteAttribute(ODataV4Format):
+    """Inherit from azure-core overwrite method/property"""
+
+    @property
+    def error(self) -> str:
+        pass
+
+    def message_details(self) -> int:
+        pass

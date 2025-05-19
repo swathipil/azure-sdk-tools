@@ -364,6 +364,14 @@ class ClassNode(NodeEntityBase):
         # Generate token for child nodes
         if self.child_nodes:
             self._generate_child_tokens()
+        else:
+            # If no children, add blank lines to separate from other classes
+            # All blank lines should be related to class ID, so that they are hidden if class is hidden
+            self.children.set_blank_lines(
+                2,
+                last_is_context_end_line=True,
+                related_to_line=self.namespace_id,
+            )
 
         line.add_children(self.children)
         review_lines.append(line)
