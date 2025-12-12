@@ -39,6 +39,14 @@ public class APIReviewFeedbackResponse : TypeSpecBaseResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public new List<string>? NextSteps { get; set; }
 
+    [JsonPropertyName("handwritten_required")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<HandwrittenComment>? HandwrittenRequired { get; set; }
+
+    [JsonPropertyName("discussion_only")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<DiscussionComment>? DiscussionOnly { get; set; }
+
     protected override string Format()
     {
         var output = new StringBuilder();
@@ -75,6 +83,31 @@ public class APIReviewFeedbackResponse : TypeSpecBaseResponse
             }
         }
 
+        if (HandwrittenRequired != null && HandwrittenRequired.Count > 0)
+        {
+            output.AppendLine();
+            output.AppendLine($"=== Handwritten Code Required ({HandwrittenRequired.Count}) ===");
+            foreach (var comment in HandwrittenRequired)
+            {
+                output.AppendLine($"  • {comment.CommentText}");
+                output.AppendLine($"    Reason: {comment.Reasoning}");
+            }
+        }
+
+        if (DiscussionOnly != null && DiscussionOnly.Count > 0)
+        {
+            output.AppendLine();
+            output.AppendLine($"=== Discussion/Informational ({DiscussionOnly.Count}) ===");
+            foreach (var comment in DiscussionOnly.Take(5))
+            {
+                output.AppendLine($"  • {comment.CommentText}");
+            }
+            if (DiscussionOnly.Count > 5)
+            {
+                output.AppendLine($"  ... and {DiscussionOnly.Count - 5} more");
+            }
+        }
+
         if (NextSteps != null && NextSteps.Count > 0)
         {
             output.AppendLine();
@@ -87,4 +120,27 @@ public class APIReviewFeedbackResponse : TypeSpecBaseResponse
 
         return output.ToString();
     }
+}
+
+public class HandwrittenComment
+{
+    [JsonPropertyName("comment_text")]
+    public string CommentText { get; set; } = string.Empty;
+
+    [JsonPropertyName("reasoning")]
+    public string Reasoning { get; set; } = string.Empty;
+
+    [JsonPropertyName("element_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ElementId { get; set; }
+}
+
+public class DiscussionComment
+{
+    [JsonPropertyName("comment_text")]
+    public string CommentText { get; set; } = string.Empty;
+
+    [JsonPropertyName("username")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Username { get; set; }
 }

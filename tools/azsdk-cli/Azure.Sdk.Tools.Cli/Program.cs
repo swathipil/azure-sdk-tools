@@ -4,6 +4,7 @@ using Azure.Sdk.Tools.Cli.Commands;
 using Azure.Sdk.Tools.Cli.Helpers;
 using Azure.Sdk.Tools.Cli.Services;
 using Azure.Sdk.Tools.Cli.Telemetry;
+using DotNetEnv;
 
 namespace Azure.Sdk.Tools.Cli;
 
@@ -13,6 +14,13 @@ public class Program
 
     public static async Task<int> Main(string[] args)
     {
+        // Load .env file from current working directory if it exists
+        var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+        if (File.Exists(envPath))
+        {
+            Env.Load(envPath);
+        }
+        
         return await Run(args);
     }
 

@@ -38,6 +38,7 @@ namespace Azure.Sdk.Tools.Cli.Services
             services.AddSingleton<IAPIViewAuthenticationService, APIViewAuthenticationService>();
             services.AddSingleton<IAPIViewHttpService, APIViewHttpService>();
             services.AddSingleton<IAPIViewService, APIViewService>();
+            services.AddSingleton<ICommentClassificationService, CommentClassificationService>();
 
             services.AddScoped<LanguageService, DotnetLanguageService>();
             services.AddScoped<LanguageService, JavaLanguageService>();
@@ -98,26 +99,37 @@ namespace Azure.Sdk.Tools.Cli.Services
                 var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
                 var openAiBaseUrl = Environment.GetEnvironmentVariable("OPENAI_BASE_URL");
                 var azureOpenAiEndpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
+                
+                // Support for Anthropic Claude models deployed on Azure AI Foundry as serverless APIs
+                var anthropicEndpoint = Environment.GetEnvironmentVariable("ANTHROPIC_AZURE_ENDPOINT");
+                var anthropicApiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
 
                 Uri? endpoint = null;
 
-                // Priority 1: Use OPENAI_BASE_URL if it exists
-                if (!string.IsNullOrWhiteSpace(openAiBaseUrl))
+                // Priority 1: Use ANTHROPIC_AZURE_ENDPOINT for Claude models deployed on Azure
+                if (!string.IsNullOrWhiteSpace(anthropicEndpoint))
+                {
+                    endpoint = new Uri(anthropicEndpoint);
+                    return AzureOpenAIClientHelper.CreateAnthropicClaudeClient(endpoint, credential);
+                }
+                // Priority 2: Use OPENAI_BASE_URL if it exists
+                else if (!string.IsNullOrWhiteSpace(openAiBaseUrl))
                 {
                     endpoint = new Uri(openAiBaseUrl);
                 }
-                // Priority 2: Use AZURE_OPENAI_ENDPOINT with /openai/v1 postfix if it exists
+                // Priority 3: Use AZURE_OPENAI_ENDPOINT with /openai/v1 for Azure OpenAI Service
+                // This works for both GPT and Claude models deployed on Azure OpenAI Service
                 else if (!string.IsNullOrWhiteSpace(azureOpenAiEndpoint))
                 {
                     var baseEndpoint = azureOpenAiEndpoint.TrimEnd('/') + "/openai/v1";
                     endpoint = new Uri(baseEndpoint);
                 }
-                // Priority 3: If no OPENAI_API_KEY but no Azure endpoint, use openai-shared
+                // Priority 4: If no OPENAI_API_KEY but no Azure endpoint, use openai-shared
                 else if (string.IsNullOrWhiteSpace(openAiApiKey))
                 {
                     endpoint = new Uri("https://openai-shared.openai.azure.com/openai/v1");
                 }
-                // Priority 4: OPENAI_API_KEY exists but no Azure endpoint - use standard OpenAI (no endpoint)
+                // Priority 5: OPENAI_API_KEY exists but no Azure endpoint - use standard OpenAI (no endpoint)
 
                 // If we have an endpoint, use the Azure helper which handles bearer token vs API key
                 if (endpoint != null)
