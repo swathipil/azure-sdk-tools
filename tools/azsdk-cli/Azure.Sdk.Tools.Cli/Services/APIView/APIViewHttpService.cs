@@ -49,10 +49,9 @@ public class APIViewHttpService : IAPIViewHttpService
 
     public async Task<(string? content, int statusCode)> GetAsync(string endpoint, CancellationToken ct)
     {
-        string baseUrl = _baseUrl;
         HttpClient httpClient = await GetOrCreateAuthenticatedClientAsync(ct);
 
-        string requestUrl = $"{baseUrl}{endpoint}";
+        string requestUrl = $"{_baseUrl}{endpoint}";
         using HttpResponseMessage response = await httpClient.GetAsync(requestUrl, ct);
 
         string content = await response.Content.ReadAsStringAsync(ct);
@@ -73,10 +72,9 @@ public class APIViewHttpService : IAPIViewHttpService
 
     public async Task<(string? content, int statusCode)> PostAsync(string endpoint, CancellationToken ct)
     {
-        string baseUrl = _baseUrl;
         HttpClient httpClient = await GetOrCreateAuthenticatedClientAsync(ct);
 
-        string requestUrl = $"{baseUrl}{endpoint}";
+        string requestUrl = $"{_baseUrl}{endpoint}";
         using HttpResponseMessage response = await httpClient.PostAsync(requestUrl, new StringContent(string.Empty), ct);
 
         string content = await response.Content.ReadAsStringAsync(ct);
