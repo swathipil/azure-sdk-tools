@@ -161,7 +161,7 @@ class ClassNode(NodeEntityBase):
             class_node = astroid.parse(inspect.getsource(class_obj)).body[0]
             class_decorators = class_node.decorators.nodes
             self.decorators = [
-                f"@{x.as_string(preserve_quotes=True)}" for x in class_decorators
+                f"@{x.as_string()}" for x in class_decorators
             ]
         except:
             self.decorators = []
@@ -304,6 +304,27 @@ class ClassNode(NodeEntityBase):
     def _get_base_classes(self):
         # Find base classes
         base_classes = []
+
+        # First, try to get base classes from source code (AST) to preserve the exact names
+        # as they appear in source, rather than runtime internal names
+        try:
+            class_node = astroid.parse(inspect.getsource(self.obj)).body[0]
+            if hasattr(class_node, 'bases') and class_node.bases:
+                for base in class_node.bases:
+                    base_str = base.as_string()
+                    # Filter out 'object' base class
+                    if base_str != 'object':
+                        base_classes.append(base_str)
+                # If we successfully got base classes from source, return them
+                if base_classes:
+                    logging.debug(f"AST parsed base classes for {self.name}: {base_classes}")
+                    return base_classes
+        except Exception as e:
+            # If parsing source fails, fall back to runtime introspection
+            logging.debug(f"AST parsing failed for {self.name}: {e}")
+            pass
+
+        # Fall back to runtime introspection if source parsing fails or yields no bases
         bases = getattr(self.obj, "__orig_bases__", [])
         if not bases:
             bases = getattr(self.obj, "__bases__", [])

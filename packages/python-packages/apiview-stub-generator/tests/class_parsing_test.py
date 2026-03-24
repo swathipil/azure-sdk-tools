@@ -14,6 +14,7 @@ from apistubgentest.models import (
     FakeObject,
     GenericStack,
     PetEnumPy3MetaclassAlt,
+    PublicCaseInsensitiveEnumMeta,
     PublicPrivateClass,
     PropertyWithNoNameAttr,
     RequiredKwargObject,
@@ -255,6 +256,36 @@ class TestClassParsing:
         metadata = _count_review_line_metadata(tokens, metadata)
         assert metadata["RelatedToLine"] == 2
         assert metadata["IsContextEndLine"] == 1
+
+    def test_enum_meta_inheritance(self):
+        """Test that classes inheriting from EnumMeta show 'EnumMeta' not 'EnumType'.
+
+        This is a regression test for Python 3.11+ where EnumType is the actual class
+        but EnumMeta is the public alias. We want to show the source code representation
+        (EnumMeta) not the runtime internal name (EnumType).
+        """
+        obj = PublicCaseInsensitiveEnumMeta
+        class_node = ClassNode(
+            name=obj.__name__,
+            namespace=obj.__name__,
+            parent_node=None,
+            obj=obj,
+            pkg_root_namespace=self.pkg_namespace,
+            apiview=MockApiView,
+        )
+        tokens = _tokenize(class_node)
+        actuals = _render_lines(tokens)
+
+        # The key assertion: should show "EnumMeta" as written in source, not "EnumType"
+        expected = ["class PublicCaseInsensitiveEnumMeta(EnumMeta):"]
+        _check_all(actuals, expected, obj)
+
+        # Without the AST parsing fix, this would show:
+        # ["class PublicCaseInsensitiveEnumMeta(EnumType):"]
+        # which is incorrect because the source code says "EnumMeta"
+
+        full_output = " ".join(actuals)
+        assert "EnumType" not in full_output, f"Found 'EnumType' in output, should be 'EnumMeta'. Got: {actuals}"
 
     def test_overloads(self):
         obj = SomethingWithOverloads
