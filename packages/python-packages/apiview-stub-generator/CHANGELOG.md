@@ -1,5 +1,8 @@
 # Release History
 
+## Version 0.3.28 (Unreleased)
+Dropped 3.7/3.8 support and added 3.11/3.12/3.13.
+
 ## Version 0.3.27 (2026-03-17)
 Removed `ivar`/`cvar` keywords from token file in favor of the `ClassVar` type annotation to distinguish then.
 Fixed a bug where classes without children were not being post-fixed with blank lines.
