@@ -137,9 +137,7 @@ class FakeError(object):
 
 FakeTypedDict = TypedDict(
     'FakeTypedDict',
-    name=str,
-    age=int,
-    union=Union[bool, FakeObject, PetEnumPy3MetaclassAlt]
+    {'name': str, 'age': int, 'union': Union[bool, FakeObject, PetEnumPy3MetaclassAlt]}
 )
 
 
