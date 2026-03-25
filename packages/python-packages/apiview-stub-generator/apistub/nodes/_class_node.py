@@ -1,8 +1,11 @@
+import ast
 import astroid
-import logging
+import copy
 import inspect
-from enum import Enum
+import logging
 import operator
+import sys
+from enum import Enum
 from typing import List
 
 from ._base_node import NodeEntityBase, get_qualified_name
@@ -69,6 +72,7 @@ class ClassNode(NodeEntityBase):
     ):
         super().__init__(namespace, parent_node, obj)
         self.base_class_names = []
+        self.class_keywords = []  # Store keyword arguments like metaclass=, total=
         # This is the name obtained by NodeEntityBase from __name__.
         # We must preserve it to detect the mismatch and issue a warning.
         self.children = ReviewLines()
@@ -301,30 +305,61 @@ class ClassNode(NodeEntityBase):
         sorted_children.extend(filter(find_instancefunc, self.child_nodes))
         self.child_nodes = sorted_children
 
-    def _get_base_classes(self):
-        # Find base classes
-        base_classes = []
+    @staticmethod
+    def _unparse_without_quotes(node):
+        """Unparse an AST node, replacing string constants (forward references) with their value."""
+        for child in ast.walk(node):
+            if isinstance(child, ast.Constant) and isinstance(child.value, str):
+                # Replace forward-reference strings like "Foo" with bare name Foo
+                child.__class__ = ast.Name
+                child.id = child.value
+        return ast.unparse(node)
 
-        # First, try to get base classes from source code (AST) to preserve the exact names
-        # as they appear in source, rather than runtime internal names
+    def _extract_bases_and_keywords_from_ast(self, class_node):
+        """Extract base class names and keyword arguments from an ast.ClassDef node."""
+        base_classes = [
+            self._unparse_without_quotes(copy.deepcopy(base))
+            for base in class_node.bases
+            if ast.unparse(base) != "object"
+        ]
+        keywords = [
+            f"{kw.arg}={ast.unparse(kw.value)}"
+            for kw in class_node.keywords
+        ]
+        return base_classes, keywords
+
+    def _get_base_classes(self):
+        # Try to resolve from source (AST) to preserve exact names as written in source.
+        # Falls back to runtime introspection if source is unavailable.
+
+        # Attempt 1: parse source for just this class directly
         try:
-            class_node = astroid.parse(inspect.getsource(self.obj)).body[0]
-            if hasattr(class_node, 'bases') and class_node.bases:
-                for base in class_node.bases:
-                    base_str = base.as_string()
-                    # Filter out 'object' base class
-                    if base_str != 'object':
-                        base_classes.append(base_str)
-                # If we successfully got base classes from source, return them
-                if base_classes:
-                    logging.debug(f"AST parsed base classes for {self.name}: {base_classes}")
+            source = inspect.getsource(self.obj)
+            class_node = ast.parse(source).body[0]
+            if isinstance(class_node, ast.ClassDef):
+                base_classes, self.class_keywords = self._extract_bases_and_keywords_from_ast(class_node)
+                if base_classes or self.class_keywords:
                     return base_classes
         except Exception as e:
-            # If parsing source fails, fall back to runtime introspection
-            logging.debug(f"AST parsing failed for {self.name}: {e}")
-            pass
+            logging.debug(f"Direct AST parsing failed for {self.name}: {e}")
+
+        # Attempt 2: parse the whole module and find the class by name
+        # (needed for enum classes where inspect.getsource returns the instance, not the class)
+        try:
+            module_name = self.obj.__module__
+            if module_name and module_name in sys.modules:
+                module_source = inspect.getsource(sys.modules[module_name])
+                for node in ast.parse(module_source).body:
+                    if isinstance(node, ast.ClassDef) and node.name == self.name:
+                        base_classes, self.class_keywords = self._extract_bases_and_keywords_from_ast(node)
+                        if base_classes or self.class_keywords:
+                            return base_classes
+                        break
+        except Exception as e:
+            logging.debug(f"Module-level AST parsing failed for {self.name}: {e}")
 
         # Fall back to runtime introspection if source parsing fails or yields no bases
+        base_classes = []
         bases = getattr(self.obj, "__orig_bases__", [])
         if not bases:
             bases = getattr(self.obj, "__bases__", [])
@@ -383,12 +418,32 @@ class ClassNode(NodeEntityBase):
         for err in self.pylint_errors:
             err.generate_tokens(self.apiview, target_id=self.namespace_id)
 
-        # Add inherited base classes
-        if self.base_class_names:
+        # Add inherited base classes and keywords
+        if self.base_class_names or self.class_keywords:
             line.add_punctuation("(", has_suffix_space=False)
-            self._generate_tokens_for_collection(
-                self.base_class_names, line, has_suffix_space=False
-            )
+
+            # Add base classes
+            if self.base_class_names:
+                self._generate_tokens_for_collection(
+                    self.base_class_names, line, has_suffix_space=False
+                )
+
+            # Add comma before keywords if we have both bases and keywords
+            if self.base_class_names and self.class_keywords:
+                line.add_punctuation(",")
+
+            # Add keyword arguments (e.g., metaclass=..., total=...)
+            for idx, keyword in enumerate(self.class_keywords):
+                # Parse keyword as "arg=value"
+                if "=" in keyword:
+                    arg, value = keyword.split("=", 1)
+                    line.add_text(arg, has_suffix_space=False)
+                    line.add_punctuation("=", has_suffix_space=False)
+                    line.add_type(value, apiview=self.apiview, has_suffix_space=False)
+                    # Add comma between multiple keywords
+                    if idx < len(self.class_keywords) - 1:
+                        line.add_punctuation(",")
+
             line.add_punctuation(")", has_suffix_space=False)
         line.add_punctuation(":", has_suffix_space=False)
 

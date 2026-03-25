@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import datetime
 from enum import Enum, EnumMeta
 import functools
-from typing import Any, overload, Dict, TypedDict, Union, Optional, Generic, TypeVar, NewType, ClassVar, Protocol, Literal
+from typing import Any, overload, Dict, List, TypedDict, Union, Optional, Generic, TypeVar, NewType, ClassVar, Protocol, Literal
 from typing_extensions import runtime_checkable
 
 from ._mixin import MixinWithOverloads
@@ -46,6 +46,11 @@ def add_id(cls):
 
     cls.__init__ = __init__
     return cls
+
+
+class ClassWithForwardRefBase(List["ClassWithForwardRefBase"]):
+    """Class with a forward-reference string in its base class."""
+    pass
 
 
 @add_id

@@ -9,6 +9,7 @@ from apistubgentest.models import (
     AliasNewType,
     AliasUnion,
     ClassWithDecorators,
+    ClassWithForwardRefBase,
     ClassWithIvarsAndCvars,
     FakeTypedDict,
     FakeObject,
@@ -249,13 +250,31 @@ class TestClassParsing:
         )
         tokens = _tokenize(class_node)
         actuals = _render_lines(tokens)
-        expected = ["class PetEnumPy3MetaclassAlt(str, Enum):", 'CAT = "cat"', 'DEFAULT = "cat"', 'DOG = "dog"']
+        expected = ["class PetEnumPy3MetaclassAlt(str, Enum, metaclass=PublicCaseInsensitiveEnumMeta):", 'CAT = "cat"', 'DEFAULT = "cat"', 'DOG = "dog"']
         _check_all(actuals, expected, obj)
 
         metadata = {"RelatedToLine": 0, "IsContextEndLine": 0}
         metadata = _count_review_line_metadata(tokens, metadata)
         assert metadata["RelatedToLine"] == 2
         assert metadata["IsContextEndLine"] == 1
+
+    def test_forward_ref_base_class(self):
+        """Test that forward-reference strings in base classes are rendered without quotes.
+
+        e.g. Generic["Foo"] should appear as Generic[Foo], not Generic['Foo'].
+        """
+        obj = ClassWithForwardRefBase
+        class_node = ClassNode(
+            name=obj.__name__,
+            namespace=obj.__name__,
+            parent_node=None,
+            obj=obj,
+            pkg_root_namespace=self.pkg_namespace,
+            apiview=MockApiView,
+        )
+        tokens = _tokenize(class_node)
+        actuals = _render_lines(tokens)
+        _check(actuals[0].lstrip(), "class ClassWithForwardRefBase(List[ClassWithForwardRefBase]):", obj)
 
     def test_enum_meta_inheritance(self):
         """Test that classes inheriting from EnumMeta show 'EnumMeta' not 'EnumType'.
