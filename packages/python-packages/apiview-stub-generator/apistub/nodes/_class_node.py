@@ -325,6 +325,7 @@ class ClassNode(NodeEntityBase):
         keywords = [
             f"{kw.arg}={ast.unparse(kw.value)}"
             for kw in class_node.keywords
+            if not ast.unparse(kw.value).lstrip(".").startswith("_")
         ]
         return base_classes, keywords
 
