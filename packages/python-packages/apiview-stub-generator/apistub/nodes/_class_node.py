@@ -122,11 +122,23 @@ class ClassNode(NodeEntityBase):
         if hasattr(func_obj, "__module__"):
             function_module = getattr(func_obj, "__module__")
             # TODO: Remove the "_model_base" workaround when this stuff is moved into azure-core.
-            return (
+            if not (
                 function_module
                 and function_module.startswith(self.pkg_root_namespace)
                 and not (function_module.endswith("_model_base") or function_module.endswith("model_base"))
-            )
+            ):
+                return False
+            # For dynamically-created classes (e.g. make_dataclass) that have no source file,
+            # only include functions that themselves have a real source file. This filters out
+            # generated methods like __init__ that were synthesized by the dataclass machinery,
+            # while keeping user-defined methods (e.g. lambdas passed via namespace=).
+            try:
+                inspect.getsource(self.obj)
+            except OSError:
+                sourcefile = inspect.getsourcefile(func_obj)
+                if not sourcefile or sourcefile == "<string>":
+                    return False
+            return True
         return False
 
     def _handle_variable(self, child_obj, name, *, type_string=None, value=None):
@@ -361,6 +373,12 @@ class ClassNode(NodeEntityBase):
 
         # Fall back to runtime introspection if source parsing fails or yields no bases
         base_classes = []
+        # Functional TypedDicts (e.g. Foo = TypedDict("Foo", {..})) have __required_keys__
+        # but in Python < 3.12 their __orig_bases__ / __bases__ resolve to dict, not TypedDict.
+        # Normalize to TypedDict so output is consistent across Python versions.
+        is_typeddict = hasattr(self.obj, "__required_keys__")
+        if is_typeddict:
+            return ["TypedDict"]
         bases = getattr(self.obj, "__orig_bases__", [])
         if not bases:
             bases = getattr(self.obj, "__bases__", [])

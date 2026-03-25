@@ -112,7 +112,7 @@ class TestClassParsing:
         tokens = _tokenize(class_node)
         actuals = _render_lines(tokens)
         expected = [
-            "class FakeTypedDict(dict):",
+            "class FakeTypedDict(TypedDict):",
             'key "age": int',
             'key "name": str',
             'key "union": Union[bool, FakeObject, PetEnumPy3MetaclassAlt]',

@@ -68,6 +68,11 @@ class FunctionNode(NodeEntityBase):
         self.hidden = False
         try:
             self.node = node or astroid.extract_node(inspect.getsource(obj))
+            # astroid.extract_node can return non-FunctionDef nodes (e.g. Assign) when
+            # the source contains assignments at module level. Discard those to avoid
+            # AttributeError on .decorators and TypeError in AstroidFunctionParser.
+            if not isinstance(self.node, (astroid.FunctionDef, astroid.AsyncFunctionDef)):
+                self.node = None
         except OSError:
             self.node = None
         self._inspect()
