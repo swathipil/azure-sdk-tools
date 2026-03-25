@@ -7,7 +7,6 @@ using Azure.Sdk.Tools.Cli.Commands;
 using Azure.Sdk.Tools.Cli.Models;
 using Azure.Sdk.Tools.Cli.Prompts.Templates;
 using Azure.Sdk.Tools.Cli.Services;
-using Azure.Sdk.Tools.Cli.Services.APIView;
 using Azure.Sdk.Tools.Cli.Tools.APIView;
 using Azure.Sdk.Tools.Cli.Tools.Core;
 using ModelContextProtocol.Server;
@@ -22,7 +21,6 @@ public class DelegateAPIViewFeedbackTool : MCPTool
 
     private readonly IAPIViewFeedbackService _service;
     private readonly IGitHubService _gitHubService;
-    private readonly IAPIViewService _apiViewService;
     private readonly ILogger<DelegateAPIViewFeedbackTool> _logger;
 
     private readonly Argument<string> _apiViewUrlArg = new("apiview-url")
@@ -48,12 +46,10 @@ public class DelegateAPIViewFeedbackTool : MCPTool
     public DelegateAPIViewFeedbackTool(
         IAPIViewFeedbackService service,
         IGitHubService gitHubService,
-        IAPIViewService apiViewService,
         ILogger<DelegateAPIViewFeedbackTool> logger)
     {
         _service = service;
         _gitHubService = gitHubService;
-        _apiViewService = apiViewService;
         _logger = logger;
     }
 
@@ -90,9 +86,8 @@ public class DelegateAPIViewFeedbackTool : MCPTool
             }
             _logger.LogInformation("Fetching APIView feedback from {Url}", apiViewUrl);
 
-            // Extract revision ID from URL and configure the correct environment
+            // Extract revision ID from URL
             var (revisionId, reviewId) = APIViewReviewTool.ExtractIdsFromUrl(apiViewUrl);
-            _apiViewService.ConfigureForUrl(apiViewUrl);
 
             _logger.LogInformation("Extracted revisionId: {RevisionId}, reviewId: {ReviewId}", revisionId, reviewId);
 

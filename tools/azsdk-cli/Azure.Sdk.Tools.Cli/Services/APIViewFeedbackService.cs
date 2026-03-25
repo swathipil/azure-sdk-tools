@@ -372,7 +372,6 @@ Respond in JSON format:
     {
         _logger.LogInformation("Preprocessing APIView feedback from: {Url}", apiViewUrl);
         var (revisionId, _) = APIViewReviewTool.ExtractIdsFromUrl(apiViewUrl);
-        _apiViewService.ConfigureForUrl(apiViewUrl);
         var comments = await GetConsolidatedComments(revisionId, ct);
         var feedbackItems = comments.Select(c =>
         {
@@ -389,7 +388,6 @@ Respond in JSON format:
     public async Task<string?> GetLanguageAsync(string apiViewUrl, CancellationToken ct = default)
     {
         var (revisionId, _) = APIViewReviewTool.ExtractIdsFromUrl(apiViewUrl);
-        _apiViewService.ConfigureForUrl(apiViewUrl);
         var metadata = await ParseReviewMetadata(revisionId, ct);
         return metadata.Language;
     }

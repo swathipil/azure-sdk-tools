@@ -4,7 +4,6 @@ namespace Azure.Sdk.Tools.Cli.Services.APIView;
 
 public interface IAPIViewHttpService
 {
-    void ConfigureEnvironment(string environment);
     Task<(string? content, int statusCode)> GetAsync(string endpoint, CancellationToken ct);
     Task<(string? content, int statusCode)> PostAsync(string endpoint, CancellationToken ct);
 }
@@ -14,9 +13,8 @@ public class APIViewHttpService : IAPIViewHttpService
     private readonly IAPIViewAuthenticationService _authService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<APIViewHttpService> _logger;
-
-    private string _environment = "production";
-    private string _baseUrl = APIViewConfiguration.BaseUrlEndpoints["production"];
+    private readonly string _environment;
+    private readonly string _baseUrl;
 
     private HttpClient? _cachedClient;
     private DateTime _cacheExpiry = DateTime.MinValue;
@@ -31,28 +29,15 @@ public class APIViewHttpService : IAPIViewHttpService
         _httpClientFactory = httpClientFactory;
         _authService = authService;
         _logger = logger;
-    }
-
-    public void ConfigureEnvironment(string environment)
-    {
-        // Skip invalidation if the environment hasn't changed
-        if (_environment == environment)
-        {
-            return;
-        }
-        _environment = environment;
-        _baseUrl = APIViewConfiguration.BaseUrlEndpoints[environment];
-        // Invalidate cached client since auth scopes differ per environment
-        _cachedClient = null;
-        _cacheExpiry = DateTime.MinValue;
+        _environment = Environment.GetEnvironmentVariable("APIVIEW_ENVIRONMENT") ?? "production";
+        _baseUrl = APIViewConfiguration.BaseUrlEndpoints[_environment];
     }
 
     public async Task<(string? content, int statusCode)> GetAsync(string endpoint, CancellationToken ct)
     {
-        string baseUrl = _baseUrl;
         HttpClient httpClient = await GetOrCreateAuthenticatedClientAsync(ct);
 
-        string requestUrl = $"{baseUrl}{endpoint}";
+        string requestUrl = $"{_baseUrl}{endpoint}";
         using HttpResponseMessage response = await httpClient.GetAsync(requestUrl, ct);
 
         string content = await response.Content.ReadAsStringAsync(ct);
@@ -73,10 +58,9 @@ public class APIViewHttpService : IAPIViewHttpService
 
     public async Task<(string? content, int statusCode)> PostAsync(string endpoint, CancellationToken ct)
     {
-        string baseUrl = _baseUrl;
         HttpClient httpClient = await GetOrCreateAuthenticatedClientAsync(ct);
 
-        string requestUrl = $"{baseUrl}{endpoint}";
+        string requestUrl = $"{_baseUrl}{endpoint}";
         using HttpResponseMessage response = await httpClient.PostAsync(requestUrl, new StringContent(string.Empty), ct);
 
         string content = await response.Content.ReadAsStringAsync(ct);
