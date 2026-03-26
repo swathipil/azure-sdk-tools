@@ -6,7 +6,7 @@
 # Changes may cause incorrect behavior and will be lost if the code is regenerated.
 # --------------------------------------------------------------------------
 
-from typing import overload
+from typing import Union, overload
 
 
 class MixinWithOverloads:
@@ -23,5 +23,5 @@ class MixinWithOverloads:
     def do_thing(val: bool) -> bool:
         ...
 
-    def do_thing(val: str | int | bool) -> str | int | bool:
+    def do_thing(val: Union[str, int, bool]) -> Union[str, int, bool]:
         return val

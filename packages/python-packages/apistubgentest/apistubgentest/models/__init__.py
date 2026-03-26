@@ -36,13 +36,15 @@ from ._models import (
     SomethingWithLiterals,
     SomeEnum
 )
+import sys
 from ._dataclasses import (
     DataClassSimple,
     DataClassWithFields,
     DataClassDynamic,
-    DataClassWithKeywordOnly,
     DataClassWithPostInit
 )
+if sys.version_info >= (3, 10):
+    from ._dataclasses import DataClassWithKeywordOnly
 
 __all__ = (
     "AliasNewType",

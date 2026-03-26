@@ -235,7 +235,12 @@ class ClassNode(NodeEntityBase):
                     )
                     add_overload_nodes(self, func_node, overloads)
             elif name == "__annotations__":
-                for item_name, item_type in child_obj.items():
+                # Use __dict__ directly to avoid inheriting parent class annotations.
+                # On Python 3.9, getattr(cls, '__annotations__') falls back to MRO,
+                # returning the parent's annotations. Python 3.10+ returns {} for classes
+                # with no own annotations. Using __dict__ is consistent across versions.
+                own_annotations = self.obj.__dict__.get("__annotations__", {})
+                for item_name, item_type in own_annotations.items():
                     if item_name.startswith("_"):
                         continue
                     if is_typeddict and (

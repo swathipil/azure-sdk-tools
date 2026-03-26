@@ -211,7 +211,10 @@ class TestApiView:
         apiview = stub_gen.generate_tokens()
         # ensure we have only the expected diagnostics when testing apistubgentest
         unclaimed = PylintParser.get_unclaimed()
-        assert len(apiview.diagnostics) == 93
+        # DataClassWithKeywordOnly (KW_ONLY) is a Python 3.10+ feature so it's absent on 3.9,
+        # resulting in 2 fewer diagnostics (its __init__ pylint warnings).
+        expected_diagnostic_count = 91 if sys.version_info < (3, 10) else 93
+        assert len(apiview.diagnostics) == expected_diagnostic_count
         # The "needs copyright header" error corresponds to a file, which isn't directly
         # represented in APIView
         assert len(unclaimed) == 1

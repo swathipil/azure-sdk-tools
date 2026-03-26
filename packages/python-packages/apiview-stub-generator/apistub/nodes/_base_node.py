@@ -182,8 +182,12 @@ def get_qualified_name(obj, namespace: str) -> str:
                 value = keyword_regex.search(arg_string).group(2)
                 if value == "NoneType":
                     # we ignore NoneType since Optional implies that NoneType is
-                    # acceptable
-                    if not name.startswith("Optional"):
+                    # acceptable. On Python 3.9, str(Optional[X]) = "typing.Optional[...]"
+                    # (no __name__), so extract the base name (before '[') then strip
+                    # the module prefix before checking to avoid double-wrapping.
+                    base = name_regex.search(name).group(0)
+                    bare_name = base.split(".")[-1] if "." in base else base
+                    if not bare_name.startswith("Optional"):
                         wrap_optional = True
                 else:
                     args.append(value)
