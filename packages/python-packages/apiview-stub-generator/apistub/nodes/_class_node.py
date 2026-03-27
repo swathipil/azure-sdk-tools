@@ -1,6 +1,5 @@
 import ast
 import astroid
-import copy
 import inspect
 import logging
 import operator
@@ -134,7 +133,7 @@ class ClassNode(NodeEntityBase):
             # while keeping user-defined methods (e.g. lambdas passed via namespace=).
             try:
                 inspect.getsource(self.obj)
-            except OSError:
+            except (OSError, TypeError):
                 sourcefile = inspect.getsourcefile(func_obj)
                 if not sourcefile or sourcefile == "<string>":
                     return False
@@ -325,17 +324,18 @@ class ClassNode(NodeEntityBase):
     @staticmethod
     def _unparse_without_quotes(node):
         """Unparse an AST node, replacing string constants (forward references) with their value."""
-        for child in ast.walk(node):
-            if isinstance(child, ast.Constant) and isinstance(child.value, str):
-                # Replace forward-reference strings like "Foo" with bare name Foo
-                child.__class__ = ast.Name
-                child.id = child.value
-        return ast.unparse(node)
+        class _ForwardRefToName(ast.NodeTransformer):
+            def visit_Constant(self, node):
+                if isinstance(node.value, str):
+                    return ast.Name(id=node.value, ctx=ast.Load())
+                return node
+
+        return ast.unparse(_ForwardRefToName().visit(node))
 
     def _extract_bases_and_keywords_from_ast(self, class_node):
         """Extract base class names and keyword arguments from an ast.ClassDef node."""
         base_classes = [
-            self._unparse_without_quotes(copy.deepcopy(base))
+            self._unparse_without_quotes(base)
             for base in class_node.bases
             if ast.unparse(base) != "object"
         ]
